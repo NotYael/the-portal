@@ -5,7 +5,8 @@ import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageSkeleton } from "@/components/ui/skeleton";
-import { usePortalData, useToday } from "@/lib/data/store";
+import { useExpenseBook } from "@/lib/data/expense-book";
+import { useToday } from "@/lib/data/store";
 import { dayOfMonth, isMonthKey, monthKey, monthKeyOf, parseMonthKey } from "@/lib/dates";
 import {
   computeMonthStats,
@@ -37,7 +38,7 @@ const SettingsIcon = () => (
 );
 
 export function ExpensesView() {
-  const data = usePortalData();
+  const { book: data, error } = useExpenseBook();
   const today = useToday();
   const params = useSearchParams();
   const router = useRouter();
@@ -45,7 +46,17 @@ export function ExpensesView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [manual, setManual] = useState<{ open: boolean; prefill?: string; key: number }>({ open: false, key: 0 });
 
-  if (!data || !today) return <PageSkeleton cards={6} label="Loading expenses" />;
+  if (!data || !today) {
+    if (!error) return <PageSkeleton cards={6} label="Loading expenses" />;
+    return (
+      <>
+        <PageHeader kicker="Your spending" title="Expenses" />
+        <p role="alert" className="m-0 rounded-[12px] bg-warn-soft px-4 py-3 text-sm text-warn-ink">
+          {error}
+        </p>
+      </>
+    );
+  }
 
   // ---- resolve ?m=YYYY-MM / ?y=YYYY against the data ----
   const currentKey = monthKeyOf(today);

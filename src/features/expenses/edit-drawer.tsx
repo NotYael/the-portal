@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { deleteExpense, updateExpense } from "@/lib/data/store";
+import { deleteExpense, updateExpense } from "@/lib/data/expense-book";
 import { mediumDate } from "@/lib/format";
 import type { Category, Expense, ISODate } from "@/lib/types";
 import { draftFromExpense, validateDraft, type DraftErrors, type ExpenseDraft } from "./expense-draft";
@@ -26,6 +26,8 @@ export function EditDrawer({
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
   const [errors, setErrors] = useState<DraftErrors>({});
   const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [openedFor, setOpenedFor] = useState<string | null>(null);
 
   // Reset the form whenever a different expense opens.
@@ -34,6 +36,7 @@ export function EditDrawer({
     setDraft(draftFromExpense(expense));
     setErrors({});
     setConfirming(false);
+    setSaveError(null);
   }
 
   useEffect(() => {
@@ -48,20 +51,34 @@ export function EditDrawer({
     onClose();
   };
 
-  const save = (event: FormEvent) => {
+  const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (!expense || !draft) return;
+    if (!expense || !draft || busy) return;
     const { errors, value } = validateDraft(draft, today, categories);
     setErrors(errors);
     if (!value) return;
-    updateExpense(expense.id, value);
+    setBusy(true);
+    setSaveError(null);
+    const saved = await updateExpense(expense.id, value);
+    setBusy(false);
+    if (!saved) {
+      setSaveError("Couldn’t save your changes. Try again.");
+      return;
+    }
     toast("Expense updated");
     close();
   };
 
-  const remove = () => {
-    if (!expense) return;
-    deleteExpense(expense.id);
+  const remove = async () => {
+    if (!expense || busy) return;
+    setBusy(true);
+    setSaveError(null);
+    const deleted = await deleteExpense(expense.id);
+    setBusy(false);
+    if (!deleted) {
+      setSaveError("Couldn’t delete the expense. Try again.");
+      return;
+    }
     toast("Expense deleted");
     close();
   };
@@ -98,6 +115,11 @@ export function EditDrawer({
           </div>
 
           <div className="flex flex-col gap-3 border-t border-line px-6 py-4">
+            {saveError ? (
+              <p role="alert" className="m-0 text-sm text-warn-ink">
+                {saveError}
+              </p>
+            ) : null}
             {confirming ? (
               <div role="alert" className="flex flex-col gap-3 rounded-[12px] bg-warn-soft p-4">
                 <p className="m-0 text-sm font-medium text-warn-ink">Delete this expense? This can’t be undone.</p>
@@ -106,8 +128,8 @@ export function EditDrawer({
                   <Button autoFocus onClick={() => setConfirming(false)}>
                     Cancel
                   </Button>
-                  <Button variant="danger" onClick={remove}>
-                    Delete
+                  <Button variant="danger" onClick={remove} disabled={busy}>
+                    {busy ? "Deleting…" : "Delete"}
                   </Button>
                 </div>
               </div>
@@ -116,8 +138,8 @@ export function EditDrawer({
                 <Button variant="danger-outline" onClick={() => setConfirming(true)}>
                   Delete
                 </Button>
-                <Button type="submit" variant="primary">
-                  Save changes
+                <Button type="submit" variant="primary" disabled={busy}>
+                  {busy ? "Saving…" : "Save changes"}
                 </Button>
               </div>
             )}

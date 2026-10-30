@@ -11,13 +11,16 @@ import { PageSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { hourInManila, monthKeyOf, parseISODate } from "@/lib/dates";
 import { agentHealth } from "@/lib/agent-health";
+import { useExpenseBook } from "@/lib/data/expense-book";
 import { useJobBoard } from "@/lib/data/job-board";
+import { useReminders } from "@/lib/data/reminders";
 import { setSubgoalDone, useNow, usePortalData, useToday } from "@/lib/data/store";
 import { computeMonthStats, sumAmounts } from "@/lib/expense-stats";
 import { MONTHS_LONG, dayAndTime, longDate, monthShort, peso, pesoExact, shortDate } from "@/lib/format";
 import { nextSubgoal } from "@/lib/goal-progress";
 import { entriesThisWeek, goalSummary, goalsForYear, jobCounts, journalStreak, topMatches } from "@/lib/portal-summary";
-import type { Goal, GoalSubgoal } from "@/lib/types";
+import { dueLabel, reminderBuckets } from "@/lib/reminders";
+import type { Goal, GoalSubgoal, ISODate, Reminder } from "@/lib/types";
 import { BudgetAlert } from "../expenses/budget-alert";
 import { QuickAdd } from "../expenses/quick-add";
 import { agentStatusTitle } from "../jobs/agent-status";
@@ -27,11 +30,24 @@ function greeting(hour: number) {
 }
 
 export function HomeView() {
-  const data = usePortalData();
+  const portal = usePortalData();
+  const { book, error } = useExpenseBook();
   const today = useToday();
   const now = useNow();
   const { board } = useJobBoard();
-  if (!data || !today || !now) return <PageSkeleton cards={4} label="Loading your dashboard" />;
+  const { reminders } = useReminders();
+  if (!portal || !today || !now || (!book && !error)) return <PageSkeleton cards={4} label="Loading your dashboard" />;
+  if (!book) {
+    return (
+      <>
+        <PageHeader kicker={longDate(today)} title={`${greeting(hourInManila())}, ${portal.profile.name}`} />
+        <p role="alert" className="m-0 rounded-[12px] bg-warn-soft px-4 py-3 text-sm text-warn-ink">
+          {error}
+        </p>
+      </>
+    );
+  }
+  const data = { ...portal, ...book };
 
   const { year, month } = parseISODate(today);
   const stats = computeMonthStats({
@@ -159,6 +175,8 @@ export function HomeView() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
+          {reminders ? <DueReminders reminders={reminders} today={today} /> : null}
+
           <Panel title="This week so far" aside={<span className="text-[13px] text-muted">Digest sends Sunday, 8:00 PM</span>}>
             <div className="flex flex-col gap-2">
               <Eyebrow>Wins</Eyebrow>
@@ -281,6 +299,27 @@ function UpNext({ goals }: { goals: Goal[] }) {
           {finished} goal{finished === 1 ? "" : "s"} done this year.
         </p>
       ) : null}
+    </Panel>
+  );
+}
+
+/** Reminders that are overdue or due in the next 7 days; nothing when there are none. */
+function DueReminders({ reminders, today }: { reminders: Reminder[]; today: ISODate }) {
+  const { overdue, thisWeek } = reminderBuckets(reminders, today);
+  const due = [...overdue, ...thisWeek];
+  if (!due.length) return null;
+  return (
+    <Panel title="Reminders" aside={<Link href="/reminders" className="text-sm font-semibold">All →</Link>} gap="gap-1">
+      <ul className="m-0 list-none p-0">
+        {due.map((r, i) => (
+          <li key={r.id} className={`flex items-baseline justify-between gap-3 py-3 ${i < due.length - 1 ? "border-b border-divider" : ""}`}>
+            <span className="min-w-0 text-sm font-medium">{r.title}</span>
+            <span className={`shrink-0 text-[13px] ${r.due_on < today ? "font-semibold text-warn-ink" : "text-muted"}`}>
+              {dueLabel(r.due_on, today)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </Panel>
   );
 }

@@ -509,12 +509,63 @@ export type Database = {
         }
         Relationships: []
       }
+      reminders: {
+        Row: {
+          created_at: string
+          done_at: string | null
+          due_on: string
+          id: string
+          notes: string
+          repeat_every: number | null
+          repeat_unit: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          done_at?: string | null
+          due_on: string
+          id?: string
+          notes?: string
+          repeat_every?: number | null
+          repeat_unit?: string | null
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          done_at?: string | null
+          due_on?: string
+          id?: string
+          notes?: string
+          repeat_every?: number | null
+          repeat_unit?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_expense_settings: {
+        Args: {
+          p_ai_insights_enabled: boolean
+          p_alert_threshold_pct: number
+          p_category_budgets: Json
+          p_cycle_start_day: number
+          p_default_payment_method: string
+          p_include_in_digest: boolean
+          p_monthly_budget: number
+          p_rollover_enabled: boolean
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

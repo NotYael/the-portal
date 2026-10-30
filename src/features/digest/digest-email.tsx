@@ -18,6 +18,19 @@ export function DigestEmail({ digest }: { digest: DigestData }) {
       <DigestList title="Wins this week" tone="text-accent-ink" items={digest.wins} empty="No wins logged yet — tag a journal entry as Win." />
       <DigestList title="Targets for next week" tone="text-warn-ink" items={digest.targets} empty="No targets yet — tag a journal entry as Target." />
 
+      {digest.reminders.length ? (
+        <div className="flex flex-col gap-2.5 border-b border-divider px-6 py-7 sm:px-9">
+          <h3 className="m-0 mb-1 text-[13px] font-semibold tracking-[0.06em] text-muted uppercase">Reminders for the week ahead</h3>
+          <ul className="m-0 flex list-disc flex-col gap-2.5 pl-5">
+            {digest.reminders.map((r) => (
+              <li key={r.id} className="text-[15px] leading-normal">
+                {r.title} <span className={r.overdue ? "font-semibold text-warn-ink" : "text-muted"}>· {r.when}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4 border-b border-divider px-6 py-7 sm:px-9">
         {expenses ? (
           <div>

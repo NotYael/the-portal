@@ -161,3 +161,21 @@ export interface JournalEntry {
   goal_id: string | null;
   created_at: string;
 }
+
+export type RepeatUnit = "day" | "week" | "month";
+
+/** A row of reminders. Repeating ones never get `done_at`: marking them done moves `due_on` forward. */
+export interface Reminder {
+  id: string;
+  title: string;
+  notes: string;
+  due_on: ISODate;
+  /** Both null for a one-off. */
+  repeat_every: number | null;
+  repeat_unit: RepeatUnit | null;
+  done_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type NewReminder = Pick<Reminder, "title" | "notes" | "due_on" | "repeat_every" | "repeat_unit">;

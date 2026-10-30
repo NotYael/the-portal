@@ -1,16 +1,16 @@
 # The Portal
 
-A private, single-user workspace: expenses, goals, job agent, journal and a weekly digest behind one login.
+A private, single-user workspace: expenses, goals, job agent, journal, reminders and a weekly digest behind one login.
 
 The full spec lives in [`docs/PORTAL_SPEC.md`](docs/PORTAL_SPEC.md). The visual reference is the
 [mockup canvas](https://claude.ai/artifact/5Mnvh76Ko68MZ9zUHmGFP5).
 
 ## Status
 
-Login and the Job agent run on Supabase, and the expense AI features run on Gemini; everything else still runs on
-seeded demo data in `localStorage`.
+Login, Expenses (expenses, categories, settings, budget history), the Job agent and Reminders run on Supabase, and the expense
+AI features run on Gemini; goals, journal and profile still run on seeded demo data in `localStorage`.
 Without `.env.local` (see `.env.example`) the whole app runs in **demo mode**: any email and password sign in,
-and jobs are demo data too.
+and expenses and jobs are demo data too.
 
 | Route | What works today |
 |---|---|
@@ -20,6 +20,7 @@ and jobs are demo data too.
 | `/goals` | Year tabs, check-in banner, goal cards with quarterly milestones and a sub-goal checklist (progress = sub-goals ticked ÷ total; all ticked = Done), new-goal form |
 | `/jobs` | Real matches from the job-agent bot, its live status (active / late / stopped / failing), pipeline counts, filters, Dismiss / Save / Mark applied |
 | `/journal` | Daily prompt, tags, link to goal, this week's entries, streak |
+| `/reminders` | Reminders for weeks from now (one-off or every N days/weeks/months): add form with 3/6/10-week shortcuts, Overdue / Due this week / Coming up / Done, edit drawer, Done moves a repeating one to its next date. Sidebar badge and a Home card show what's due in the next 7 days; the digest lists the week ahead |
 | `/digest` | Preview of this week's digest email |
 
 To start over with fresh demo data, clear the site's `localStorage` (key `the-portal.mock-db.v1`).
@@ -59,6 +60,7 @@ npm run typecheck
 - `src/lib/expense-parser.ts` — the quick-add rule parser (the no-AI fallback from the spec).
 - `src/lib/portal-summary.ts`, `src/lib/digest.ts` — what Home and the digest read from each module.
 - `src/lib/data/store.ts` — the mock data layer. Row shapes match the Supabase tables (`src/lib/types.ts`).
+- `src/lib/data/expense-book.ts` — expenses, categories, settings and budget history from Supabase (or the mock store in demo mode). Settings save through the `save_expense_settings` function in one transaction.
 - `src/lib/data/job-board.ts` — job matches and agent runs from Supabase (or the mock store in demo mode).
 - `src/lib/supabase/*` — browser, server and proxy clients (publishable key; RLS does the rest).
 - `src/proxy.ts` — the auth gate (Next.js 16 "proxy", formerly middleware); refreshes the Supabase session.
@@ -77,6 +79,8 @@ The spec targets Angular. This app is **Next.js 16 (App Router) + React 19 + Tai
   (Ask), and insights are cached in `localStorage` instead of `ai_insight_cache`. Switch both once expenses move to Supabase.
 - Vercel `/api` functions → Next.js route handlers under `src/app/api` (when the backend lands)
 - Angular `authGuard` → `src/proxy.ts`
+- `DIGEST_TO_EMAIL` → the recipient is hard-coded in `src/lib/email/addresses.ts` (the Portal only ever emails its owner).
+  **Send test** on `/digest` emails the previewed digest through Resend (`POST /api/digest/test`, needs `RESEND_API_KEY`).
 - Keep-alive: a GitHub Actions workflow (`.github/workflows/keep-supabase-alive.yml`) queries `profiles` every 8 hours
   instead of the daily `/api/cron/keepalive` Vercel cron. It needs the repo secrets `SUPABASE_URL` and
   `SUPABASE_SECRET_KEY` (the `sb_secret_…` key; `anon` can't read any table).
@@ -85,7 +89,7 @@ The spec targets Angular. This app is **Next.js 16 (App Router) + React 19 + Tai
 
 The Supabase project `the-portal` (ref `dpbioilargqxniuhdvfw`) has the full schema applied from
 [`supabase/migrations/`](supabase/migrations): profiles, expenses (categories, expenses, settings,
-budget history, insight cache), goals + milestones + sub-goals, journal, job matches + agent runs, and digest runs.
+budget history, insight cache), goals + milestones + sub-goals, journal, job matches + agent runs, reminders, and digest runs.
 A trigger keeps `goals.progress_pct` and `status` in step with `goal_subgoals` (same rule as `src/lib/goal-progress.ts`).
 Every table has row-level security limited to its owner, and `anon` has no access at all.
 Signing up seeds the profile, settings, 8 categories and the first budget row. Types: `src/lib/database.types.ts`.
@@ -94,7 +98,7 @@ Who writes what:
 
 | Table | Signed-in user | Server only (service role) |
 |---|---|---|
-| expenses, categories, expense_settings, budget_history, goals, goal_milestones, goal_subgoals, journal_entries | read + write | — |
+| expenses, categories, expense_settings, budget_history, goals, goal_milestones, goal_subgoals, journal_entries, reminders | read + write | — |
 | profiles | read + update | — |
 | job_matches | read, delete, change `status` only | job agent inserts |
 | agent_runs, ai_insight_cache, digest_runs | read | job agent / API / cron write |

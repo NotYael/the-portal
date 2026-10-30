@@ -6,7 +6,7 @@ import { Dot } from "@/components/ui/dot";
 import { Checkbox, Field, Select, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { DEFAULT_CATEGORY_BUDGETS, DEFAULT_SETTINGS } from "@/lib/data/defaults";
-import { saveExpenseSettings } from "@/lib/data/store";
+import { saveExpenseSettings } from "@/lib/data/expense-book";
 import { budgetRowForMonth } from "@/lib/expense-stats";
 import { groupThousands, monthLong, monthShortYear, peso } from "@/lib/format";
 import { monthKeyOf } from "@/lib/dates";
@@ -63,6 +63,7 @@ export function SettingsPanel({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const parsedBudget = parseBudget(budget, false).value ?? 0;
   const catTotal = categories.reduce((t, c) => t + (parseBudget(catBudgets[c.slug] ?? "", true).value ?? 0), 0);
@@ -75,7 +76,8 @@ export function SettingsPanel({
     setErrors({});
   };
 
-  const done = () => {
+  const done = async () => {
+    if (saving) return;
     const next: Record<string, string> = {};
     const b = parseBudget(budget, false);
     if (b.error) next.budget = b.error;
@@ -87,13 +89,16 @@ export function SettingsPanel({
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    try {
-      saveExpenseSettings({ ...form, monthly_budget: b.value ?? 0 }, perCategory);
-      toast("Settings saved");
-      onClose();
-    } catch {
+    setSaving(true);
+    setSaveError(null);
+    const saved = await saveExpenseSettings({ ...form, monthly_budget: b.value ?? 0 }, perCategory);
+    setSaving(false);
+    if (!saved) {
       setSaveError("Couldn’t save your settings. Try again.");
+      return;
     }
+    toast("Settings saved");
+    onClose();
   };
 
   const historyRows = [...history].sort((a, b) => b.effective_month.localeCompare(a.effective_month));
@@ -224,8 +229,8 @@ export function SettingsPanel({
       ) : null}
       <div className="flex flex-wrap justify-end gap-2">
         <Button onClick={reset}>Reset to defaults</Button>
-        <Button variant="primary" onClick={done}>
-          Done
+        <Button variant="primary" onClick={done} disabled={saving}>
+          {saving ? "Saving…" : "Done"}
         </Button>
       </div>
     </section>

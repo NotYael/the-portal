@@ -5,11 +5,12 @@
  * for the Gemini-written summary.
  */
 import type { PortalState } from "./data/portal-state";
-import { addDays, monthKeyOf, parseISODate } from "./dates";
+import { addDays, monthKeyOf, parseISODate, weekdayMon0 } from "./dates";
 import { computeMonthStats } from "./expense-stats";
-import { MONTHS_LONG, MONTHS_SHORT, peso } from "./format";
+import { MONTHS_LONG, MONTHS_SHORT, WEEKDAYS_SHORT, peso, shortDate } from "./format";
 import { entriesThisWeek, goalSummary, jobCounts, topMatches, weekSpending } from "./portal-summary";
-import type { ISODate } from "./types";
+import { digestReminders } from "./reminders";
+import type { ISODate, Reminder } from "./types";
 
 export interface DigestData {
   week: number;
@@ -27,6 +28,8 @@ export interface DigestData {
   } | null;
   goals: { onTrack: number; total: number; behind: string[] };
   jobs: { fresh: number; topMatch: number | null };
+  /** Open reminders that are overdue or due by the Sunday after this digest. */
+  reminders: { id: string; title: string; when: string; overdue: boolean }[];
   note: string;
   subject: string;
 }
@@ -38,7 +41,7 @@ function rangeLabel(from: ISODate, to: ISODate) {
   return `${a.day} ${MONTHS_SHORT[a.month - 1]} – ${b.day} ${MONTHS_SHORT[b.month - 1]} ${b.year}`;
 }
 
-export function buildDigest(state: PortalState, today: ISODate): DigestData {
+export function buildDigest(state: PortalState, today: ISODate, reminders: Reminder[] = []): DigestData {
   const spend = weekSpending(state.expenses, today);
   const sunday = addDays(spend.monday, 6);
   const sun = parseISODate(sunday);
@@ -49,6 +52,13 @@ export function buildDigest(state: PortalState, today: ISODate): DigestData {
   const goals = goalSummary(state.goals, year);
   const counts = jobCounts(state.jobs);
   const top = topMatches(state.jobs, 1)[0];
+  // The digest sends on Sunday, so "the week ahead" runs to the following Sunday.
+  const due = digestReminders(reminders, today, addDays(sunday, 7)).map((r) => ({
+    id: r.id,
+    title: r.title,
+    overdue: r.overdue,
+    when: r.overdue ? `was due ${shortDate(r.due_on)}` : `${WEEKDAYS_SHORT[weekdayMon0(r.due_on)]}, ${shortDate(r.due_on)}`,
+  }));
 
   let expenses: DigestData["expenses"] = null;
   if (state.settings.include_in_digest) {
@@ -78,6 +88,7 @@ export function buildDigest(state: PortalState, today: ISODate): DigestData {
       ? `Spending is ${peso(Math.abs(expenses.diff))} ${expenses.diff <= 0 ? "lower" : "higher"} than the same days last week.`
       : "",
     wins.length ? `You logged ${wins.length} win${wins.length === 1 ? "" : "s"} — keep the streak going.` : "",
+    due.length ? `${due.length} reminder${due.length === 1 ? " needs" : "s need"} you in the week ahead.` : "",
   ];
 
   const subjectParts = [`${wins.length} win${wins.length === 1 ? "" : "s"}`, `${targets.length} target${targets.length === 1 ? "" : "s"}`];
@@ -93,6 +104,7 @@ export function buildDigest(state: PortalState, today: ISODate): DigestData {
     expenses,
     goals: { onTrack: goals.onTrack, total: goals.total, behind },
     jobs: { fresh: counts.new, topMatch: top?.match_pct ?? null },
+    reminders: due,
     note: noteParts.filter(Boolean).join(" "),
     subject: `Week ${spend.week}: ${subjectParts.join(", ")}`,
   };

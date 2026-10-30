@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dot } from "@/components/ui/dot";
 import { useToast } from "@/components/ui/toast";
-import { addExpenses } from "@/lib/data/store";
+import { addExpenses } from "@/lib/data/expense-book";
 import { MAX_PARSE_LENGTH } from "@/lib/expense-parser";
 import type { Category, ExpenseSettings, ISODate } from "@/lib/types";
 import { parseQuickAdd } from "./ai-client";
@@ -40,6 +40,7 @@ export function QuickAdd({
   const [rows, setRows] = useState<PreviewRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [saving, setSaving] = useState(false);
   /** How the preview was made: by AI, or by the rules with the reason AI wasn't used. */
   const [parsedBy, setParsedBy] = useState<{ ai: boolean; notice: string | null }>({ ai: false, notice: null });
 
@@ -89,14 +90,23 @@ export function QuickAdd({
       return next && next.length ? next : null;
     });
 
-  const save = () => {
-    if (!rows) return;
+  const save = async () => {
+    if (!rows || saving) return;
     const checked = rows.map((r) => ({ row: r, ...validateDraft(r, today, categories) }));
     if (checked.some((c) => !c.value)) {
       setRows(checked.map((c) => ({ ...c.row, errors: c.errors })));
       return;
     }
-    addExpenses(checked.map((c) => ({ ...c.value!, source: parsedBy.ai ? ("ai" as const) : ("manual" as const) })));
+    setSaving(true);
+    setError(null);
+    const saved = await addExpenses(
+      checked.map((c) => ({ ...c.value!, source: parsedBy.ai ? ("ai" as const) : ("manual" as const) })),
+    );
+    setSaving(false);
+    if (!saved) {
+      setError("Couldn’t save these expenses. Try again.");
+      return;
+    }
     toast(`Saved ${rows.length} expense${rows.length === 1 ? "" : "s"}`);
     setRows(null);
     setText("");
@@ -209,8 +219,8 @@ export function QuickAdd({
             <Button variant="outline-dark" onClick={() => setRows(null)}>
               Discard
             </Button>
-            <Button variant="light" onClick={save}>
-              {`Save ${rows.length} expense${rows.length === 1 ? "" : "s"}`}
+            <Button variant="light" onClick={save} disabled={saving}>
+              {saving ? "Saving…" : `Save ${rows.length} expense${rows.length === 1 ? "" : "s"}`}
             </Button>
           </div>
         </div>

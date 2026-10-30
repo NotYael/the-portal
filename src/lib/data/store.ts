@@ -150,26 +150,36 @@ export function deleteExpense(id: string) {
   update((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== id) }));
 }
 
+type SettingsSlice = Pick<PortalState, "settings" | "categories" | "budgetHistory">;
+
 /**
- * Saves the settings form in one go: settings, each category's current
+ * What saving the settings form does: new settings, each category's current
  * budget, and the budget_history row for the current month — so past months
- * keep the budget they had.
+ * keep the budget they had. Shared with the Supabase book (expense-book.ts).
  */
+export function withSavedSettings<T extends SettingsSlice>(
+  current: T,
+  settings: ExpenseSettings,
+  categoryBudgets: Partial<Record<CategorySlug, number>>,
+  today: string,
+): T {
+  const effective_month = firstDayOfMonth(monthKeyOf(today));
+  const row = { effective_month, monthly_budget: settings.monthly_budget, category_budgets: categoryBudgets };
+  const others = current.budgetHistory.filter((h) => h.effective_month !== effective_month);
+  return {
+    ...current,
+    settings,
+    categories: current.categories.map((c) => ({ ...c, monthly_budget: categoryBudgets[c.slug] ?? null })),
+    budgetHistory: [...others, row].sort((a, b) => a.effective_month.localeCompare(b.effective_month)),
+  };
+}
+
+/** Saves the settings form in one go (see withSavedSettings). */
 export function saveExpenseSettings(
   settings: ExpenseSettings,
   categoryBudgets: Partial<Record<CategorySlug, number>>,
 ) {
-  const effective_month = firstDayOfMonth(monthKeyOf(todayInManila()));
-  update((s) => {
-    const row = { effective_month, monthly_budget: settings.monthly_budget, category_budgets: categoryBudgets };
-    const others = s.budgetHistory.filter((h) => h.effective_month !== effective_month);
-    return {
-      ...s,
-      settings,
-      categories: s.categories.map((c) => ({ ...c, monthly_budget: categoryBudgets[c.slug] ?? null })),
-      budgetHistory: [...others, row].sort((a, b) => a.effective_month.localeCompare(b.effective_month)),
-    };
-  });
+  update((s) => withSavedSettings(s, settings, categoryBudgets, todayInManila()));
 }
 
 // ---------- goals, jobs, journal ----------

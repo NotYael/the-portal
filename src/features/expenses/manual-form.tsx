@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { addExpenses } from "@/lib/data/store";
+import { addExpenses } from "@/lib/data/expense-book";
 import type { Category, ExpenseSettings, ISODate } from "@/lib/types";
 import { emptyDraft, validateDraft, type DraftErrors } from "./expense-draft";
 import { ExpenseFields } from "./expense-fields";
@@ -24,13 +24,22 @@ export function ManualForm({
   const toast = useToast();
   const [draft, setDraft] = useState(() => emptyDraft(today, categories, settings.default_payment_method, prefill));
   const [errors, setErrors] = useState<DraftErrors>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const onSubmit = (event: FormEvent) => {
+  const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const { errors, value } = validateDraft(draft, today, categories);
     setErrors(errors);
     if (!value) return;
-    addExpenses([{ ...value, source: "manual" }]);
+    setSaving(true);
+    setSaveError(null);
+    const saved = await addExpenses([{ ...value, source: "manual" }]);
+    setSaving(false);
+    if (!saved) {
+      setSaveError("Couldn’t save the expense. Try again.");
+      return;
+    }
     toast("Expense saved");
     onDone();
   };
@@ -47,10 +56,15 @@ export function ManualForm({
         <span aria-hidden="true" className="hidden text-[13px] font-semibold sm:block">
           &nbsp;
         </span>
-        <Button type="submit" variant="primary">
-          Save expense
+        <Button type="submit" variant="primary" disabled={saving}>
+          {saving ? "Saving…" : "Save expense"}
         </Button>
       </div>
+      {saveError ? (
+        <p role="alert" className="col-span-full m-0 text-sm text-warn-ink">
+          {saveError}
+        </p>
+      ) : null}
     </form>
   );
 }

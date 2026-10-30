@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { endMockSession } from "@/lib/auth/session-cookie";
-import { usePortalData } from "@/lib/data/store";
+import { useReminders } from "@/lib/data/reminders";
+import { usePortalData, useToday } from "@/lib/data/store";
+import { dueSoonCount } from "@/lib/reminders";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { useToast } from "../ui/toast";
@@ -17,6 +19,7 @@ const NAV = [
   { href: "/goals", label: "Goals" },
   { href: "/jobs", label: "Job agent" },
   { href: "/journal", label: "Journal" },
+  { href: "/reminders", label: "Reminders" },
   { href: "/digest", label: "Weekly digest" },
 ] as const;
 
@@ -27,6 +30,10 @@ function isActive(pathname: string, href: string) {
 export function Sidebar() {
   const pathname = usePathname();
   const data = usePortalData();
+  const today = useToday();
+  const { reminders } = useReminders();
+  // Overdue or due in the next 7 days.
+  const dueSoon = reminders && today ? dueSoonCount(reminders, today) : 0;
   const toast = useToast();
   const rail = useRef<HTMLDivElement>(null);
 
@@ -80,6 +87,17 @@ export function Sidebar() {
               ].join(" ")}
             >
               {item.label}
+              {item.href === "/reminders" && dueSoon > 0 ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-warn-soft px-1.5 font-mono text-xs font-semibold text-warn-ink"
+                  >
+                    {dueSoon}
+                  </span>
+                  <span className="sr-only">, {dueSoon} due soon</span>
+                </>
+              ) : null}
             </Link>
           );
         })}
