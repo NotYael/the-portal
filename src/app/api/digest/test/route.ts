@@ -13,5 +13,5 @@ export async function POST(request: Request) {
 
   const sent = await sendEmail(digestEmail(digest, new URL(request.url).origin, { test: true }));
   if (!sent.ok) return Response.json({ error: `Couldn’t send the test: ${sent.error}` }, { status: 502 });
-  return Response.json({ id: sent.id });
+  return Response.json({ id: sent.id, to: sent.to });
 }

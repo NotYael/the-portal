@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { buildDigest } from "@/lib/digest";
-import { DIGEST_FROM, DIGEST_TO } from "@/lib/email/addresses";
+import { DIGEST_FROM } from "@/lib/email/addresses";
 import { useExpenseBook } from "@/lib/data/expense-book";
 import { useJobBoard } from "@/lib/data/job-board";
 import { useReminders } from "@/lib/data/reminders";
@@ -48,8 +48,8 @@ export function DigestView() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(digest),
       });
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      toast(res.ok ? `Test sent to ${DIGEST_TO}` : (body?.error ?? "Couldn’t send the test. Try again."));
+      const body = (await res.json().catch(() => null)) as { error?: string; to?: string } | null;
+      toast(res.ok ? `Test sent to ${body?.to ?? "your inbox"}` : (body?.error ?? "Couldn’t send the test. Try again."));
     } catch {
       toast("Couldn’t reach the server. Try again.");
     } finally {
@@ -74,10 +74,6 @@ export function DigestView() {
           <div className="flex gap-2">
             <dt className="text-muted">From</dt>
             <dd className="m-0">{DIGEST_FROM}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="text-muted">To</dt>
-            <dd className="m-0">{DIGEST_TO}</dd>
           </div>
           <div className="flex gap-2">
             <dt className="text-muted">Sends</dt>

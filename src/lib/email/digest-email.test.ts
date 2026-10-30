@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DigestData } from "../digest";
 import { digestDataSchema, digestEmail, escapeHtml } from "./digest-email";
-import { DIGEST_TO } from "./addresses";
 import { sendEmail } from "./resend";
 
 const digest: DigestData = {
@@ -60,19 +59,28 @@ describe("sendEmail", () => {
   it("posts to Resend with the fixed recipient", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "em_1" }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    expect(await sendEmail({ subject: "s", html: "<p>h</p>", text: "t" }, "re_test")).toEqual({ ok: true, id: "em_1" });
+    expect(await sendEmail({ subject: "s", html: "<p>h</p>", text: "t" }, { apiKey: "re_test", to: "me@example.com" })).toEqual({
+      ok: true,
+      id: "em_1",
+      to: "me@example.com",
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.resend.com/emails");
     expect(init.headers.authorization).toBe("Bearer re_test");
-    expect(JSON.parse(init.body).to).toEqual([DIGEST_TO]);
+    expect(JSON.parse(init.body).to).toEqual(["me@example.com"]);
   });
 
   it("reports Resend's error message", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "Invalid API key" }), { status: 401 })));
-    expect(await sendEmail({ subject: "s", html: "h", text: "t" }, "re_bad")).toEqual({ ok: false, error: "Invalid API key" });
+    expect(await sendEmail({ subject: "s", html: "h", text: "t" }, { apiKey: "re_bad", to: "me@example.com" })).toEqual({
+      ok: false,
+      error: "Invalid API key",
+    });
   });
 
-  it("needs a key", async () => {
-    expect(await sendEmail({ subject: "s", html: "h", text: "t" }, "")).toEqual({ ok: false, error: "RESEND_API_KEY isn’t set." });
+  it("needs a key and a recipient", async () => {
+    const message = { subject: "s", html: "h", text: "t" };
+    expect(await sendEmail(message, { apiKey: "", to: "me@example.com" })).toEqual({ ok: false, error: "RESEND_API_KEY isn’t set." });
+    expect(await sendEmail(message, { apiKey: "re_test", to: "" })).toEqual({ ok: false, error: "DIGEST_TO_EMAIL isn’t set." });
   });
 });

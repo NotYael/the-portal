@@ -79,8 +79,8 @@ The spec targets Angular. This app is **Next.js 16 (App Router) + React 19 + Tai
   (Ask), and insights are cached in `localStorage` instead of `ai_insight_cache`. Switch both once expenses move to Supabase.
 - Vercel `/api` functions → Next.js route handlers under `src/app/api` (when the backend lands)
 - Angular `authGuard` → `src/proxy.ts`
-- `DIGEST_TO_EMAIL` → the recipient is hard-coded in `src/lib/email/addresses.ts` (the Portal only ever emails its owner).
-  **Send test** on `/digest` emails the previewed digest through Resend (`POST /api/digest/test`, needs `RESEND_API_KEY`).
+- **Send test** on `/digest` emails the previewed digest through Resend (`POST /api/digest/test`, needs `RESEND_API_KEY`
+  and `DIGEST_TO_EMAIL`).
 - Keep-alive: a GitHub Actions workflow (`.github/workflows/keep-supabase-alive.yml`) queries `profiles` every 8 hours
   instead of the daily `/api/cron/keepalive` Vercel cron. It needs the repo secrets `SUPABASE_URL` and
   `SUPABASE_SECRET_KEY` (the `sb_secret_…` key; `anon` can't read any table).
