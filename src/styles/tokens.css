@@ -1,0 +1,87 @@
+/*
+ * Design tokens from docs/PORTAL_SPEC.md → "Design system".
+ * Chart.js draws on canvas and can't read CSS variables, so the same values
+ * live in src/lib/theme.ts. Change both together.
+ *
+ * Dark mode swaps these on <html data-theme="dark"> (src/lib/color-scheme.ts).
+ */
+:root {
+  color-scheme: light;
+
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --border: #e3e6eb;
+  --border-strong: #c9ced6;
+  --ink: #111418;
+  --muted: #5b6270;
+  --accent: #2f5bff;
+  --accent-ink: #1e3fcc;
+  --accent-soft: #e8edff;
+  --warn: #e0661f;
+  --warn-ink: #b23d0a;
+  --warn-soft: #fff1e8;
+
+  /* Supporting shades used across the mockup */
+  --ink-soft: #3a404b;
+  --divider: #eef0f3;
+  --track: #e9ecf1;
+  --subtle: #f7f8fa;
+  --accent-light: #9db0ff;
+  --accent-pale: #c7d2ff;
+  --warn-line: #f2c4a6;
+  --slate: #7c8594;
+
+  /*
+   * Dark panels (quick add, agent status, login) and what sits on them. They
+   * stay dark in dark mode, so they get their own tokens instead of --ink.
+   */
+  --panel: #111418;
+  --dark-raised: #1c2027;
+  --dark-line: #3a404b;
+  --dark-muted: #b9bfca;
+
+  /* Text on an --ink fill (active nav, pressed chips, toasts) */
+  --on-ink: #ffffff;
+  /* Fills under white text; --accent-ink and --warn-ink turn light in dark mode */
+  --accent-strong: #1e3fcc;
+  --warn-strong: #b23d0a;
+  --link: var(--accent);
+  --link-hover: var(--accent-ink);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0e1013;
+  --surface: #171a1f;
+  --border: #262a31;
+  --border-strong: #3a404b;
+  --ink: #eef0f3;
+  --muted: #959cab;
+  --accent: #3d63ff;
+  --accent-ink: #a9b9ff;
+  --accent-soft: #1b2347;
+  --warn: #f07a33;
+  --warn-ink: #ff9d63;
+  --warn-soft: #311d10;
+
+  --ink-soft: #c3c8d1;
+  --divider: #20242a;
+  --track: #262a31;
+  --subtle: #1d2026;
+  --accent-light: #7f97ff;
+  --accent-pale: #2d3a72;
+  --warn-line: #6b3a1c;
+  --slate: #7c8594;
+
+  --panel: #1f232b;
+  --dark-raised: #2a2f38;
+  --dark-line: #434a56;
+  --dark-muted: #b9bfca;
+
+  --on-ink: #111418;
+  --accent-strong: #2b50e6;
+  --warn-strong: #b23d0a;
+  --link: #a9b9ff;
+  --link-hover: #eef0f3;
+}
