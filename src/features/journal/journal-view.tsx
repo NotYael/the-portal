@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { FilterChip } from "@/components/ui/chip";
-import { Field, Select, TextArea } from "@/components/ui/field";
+import { Checkbox, Field, Select, TextArea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
@@ -11,6 +11,7 @@ import { dayOfMonth, parseISODate, weekdayMon0 } from "@/lib/dates";
 import { JOURNAL_PROMPTS } from "@/lib/data/defaults";
 import { useGoals } from "@/lib/data/goals";
 import { addJournalEntry, useJournal } from "@/lib/data/journal";
+import { setJournalAiSummary, useJournalSettings } from "@/lib/data/journal-settings";
 import { useToday } from "@/lib/data/store";
 import { WEEKDAYS_LONG, WEEKDAYS_SHORT, longDate } from "@/lib/format";
 import { entriesThisWeek, goalsForYear, journalStreak } from "@/lib/portal-summary";
@@ -136,7 +137,7 @@ export function JournalView() {
               {saving ? "Saving…" : "Save entry"}
             </Button>
           </div>
-          <p className="m-0 text-xs text-muted">Journal text stays private. It’s never sent to AI unless you turn that on.</p>
+          <AiSummarySetting />
         </form>
 
         <aside aria-labelledby="week-title" className="flex min-w-0 flex-[1_1_300px] flex-col gap-3">
@@ -171,5 +172,37 @@ export function JournalView() {
         </aside>
       </div>
     </>
+  );
+}
+
+/** The opt-in for Gemini tidying Win and Target entries in the weekly digest. */
+function AiSummarySetting() {
+  const { aiSummary, error } = useJournalSettings();
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+
+  const toggle = async (enabled: boolean) => {
+    setSaving(true);
+    const saved = await setJournalAiSummary(enabled);
+    setSaving(false);
+    toast(saved ? (enabled ? "Gemini will tidy Win and Target entries in the digest" : "Journal text stays out of AI") : "Couldn’t save that. Try again.");
+  };
+
+  return (
+    <div className="flex flex-col gap-1 border-t border-divider pt-3">
+      <Checkbox
+        label="Let Gemini tidy this week’s Win and Target entries in the weekly digest"
+        checked={aiSummary === true}
+        disabled={aiSummary === null || saving}
+        onChange={(e) => void toggle(e.target.checked)}
+        aria-describedby="ai-summary-hint"
+      />
+      <p id="ai-summary-hint" className="m-0 text-xs text-muted">
+        {error ??
+          (aiSummary
+            ? "On: only entries tagged Win or Target are sent to Gemini, once a week, to shorten them for the digest."
+            : "Off: journal text never leaves the Portal. The digest lists Win and Target entries as you wrote them.")}
+      </p>
+    </div>
   );
 }

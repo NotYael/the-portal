@@ -10,7 +10,8 @@ function steps(overrides: Partial<DigestCronSteps> = {}) {
   const send = vi.fn<DigestCronSteps["send"]>(async () => ({ ok: true, id: "re_123", to: "me@example.test" }));
   const all: DigestCronSteps = {
     claim: async (): Promise<Claim> => ({ id: "run-1" }),
-    load: async () => ({ state: seedPortal(SUNDAY), reminders: [] }),
+    load: async () => ({ state: seedPortal(SUNDAY), reminders: [], journalAiSummary: false }),
+    summarize: async (digest) => digest,
     send,
     finish,
     ...overrides,
@@ -43,6 +44,22 @@ describe("runWeeklyDigest", () => {
     expect(send.mock.calls[0][0].subject).toMatch(/^Week \d+:/);
     expect(finish).toHaveBeenCalledWith("run-1", { status: "sent", resendId: "re_123" });
     expect(result).toEqual({ status: "sent", weekStart: "2026-11-16", resendId: "re_123" });
+  });
+
+  it("sends the summarized digest", async () => {
+    const { all, send } = steps({ summarize: async (digest) => ({ ...digest, subject: "Week 47: written by Gemini" }) });
+    await runWeeklyDigest(all, SUNDAY);
+    expect(send.mock.calls[0][0].subject).toBe("Week 47: written by Gemini");
+  });
+
+  it("sends the template digest when summarizing fails", async () => {
+    const { all, send } = steps({
+      summarize: async () => {
+        throw new Error("gemini down");
+      },
+    });
+    expect(await runWeeklyDigest(all, SUNDAY)).toMatchObject({ status: "sent" });
+    expect(send.mock.calls[0][0].subject).toMatch(/^Week \d+:/);
   });
 
   it("sends nothing when the week was already sent", async () => {

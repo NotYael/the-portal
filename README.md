@@ -51,8 +51,10 @@ score) is "Ran with problems".
 answers `Authorization: Bearer $CRON_SECRET`, reads every module for `ALLOWED_USER_ID` with the secret key
 (`src/lib/digest-source.ts`), builds the same digest as `/digest` and emails it through Resend. It claims the week's
 `digest_runs` row before sending, so a second run that week sends nothing; a failed send marks the row `failed` and
-the next run can try again. The summary is the template one (Gemini-written summaries aren't built yet). To check it
-without sending anything:
+the next run can try again. Gemini writes the subject and summary from aggregates only (`src/lib/ai/digest-ai.ts`);
+Win and Target entries are sent to Gemini, to be shortened, only when the Journal page's setting is on (off by
+default, `profiles.journal_ai_summary_enabled`). If Gemini isn't available, the template digest goes out. **Send test**
+on `/digest` uses the same summary. To check it without sending anything:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/weekly-digest?dryRun=1"

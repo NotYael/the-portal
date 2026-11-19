@@ -54,8 +54,9 @@ export function DigestView() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(digest),
       });
-      const body = (await res.json().catch(() => null)) as { error?: string; to?: string } | null;
-      toast(res.ok ? `Test sent to ${body?.to ?? "your inbox"}` : (body?.error ?? "Couldn’t send the test. Try again."));
+      const body = (await res.json().catch(() => null)) as { error?: string; to?: string; ai?: boolean } | null;
+      const by = body?.ai ? " (summary by Gemini)" : " (template summary: Gemini wasn’t available)";
+      toast(res.ok ? `Test sent to ${body?.to ?? "your inbox"}${by}` : (body?.error ?? "Couldn’t send the test. Try again."));
     } catch {
       toast("Couldn’t reach the server. Try again.");
     } finally {

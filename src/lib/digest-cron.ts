@@ -23,6 +23,8 @@ export function cronAuthorized(header: string | null, secret: string | undefined
 export interface DigestSource {
   state: PortalState;
   reminders: Reminder[];
+  /** Journal setting: may Gemini tidy the Win and Target entries? Off by default. */
+  journalAiSummary: boolean;
 }
 
 export type Claim = { id: string } | "taken" | { error: string };
@@ -35,6 +37,8 @@ export interface DigestCronSteps {
    */
   claim(weekStart: ISODate): Promise<Claim>;
   load(): Promise<DigestSource | null>;
+  /** Gemini's subject and note (lib/ai/digest-ai.ts); if it fails, the template digest goes out. */
+  summarize(digest: DigestData, source: DigestSource): Promise<DigestData>;
   send(digest: DigestData): Promise<SendResult>;
   /** Records how it went; a failed send frees the week, so the next run can try again. */
   finish(id: string, outcome: Outcome): Promise<void>;
@@ -59,7 +63,9 @@ export async function runWeeklyDigest(steps: DigestCronSteps, today: ISODate): P
   try {
     const source = await steps.load();
     if (!source) return await fail("Couldn’t load this week’s data.");
-    const sent = await steps.send(buildDigest(source.state, today, source.reminders));
+    const draft = buildDigest(source.state, today, source.reminders);
+    const digest = await steps.summarize(draft, source).catch(() => draft);
+    const sent = await steps.send(digest);
     if (!sent.ok) return await fail(sent.error);
     await steps.finish(claim.id, { status: "sent", resendId: sent.id });
     return { status: "sent", weekStart, resendId: sent.id };

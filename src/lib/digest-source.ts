@@ -41,7 +41,7 @@ export async function loadDigestSource(supabase: SupabaseAdmin, userId: string, 
       .order("id"),
     supabase.from("job_matches").select(JOB_COLUMNS).eq("user_id", userId).neq("status", "dismissed").order("match_pct", { ascending: false }),
     supabase.from("reminders").select(REMINDER_COLUMNS).eq("user_id", userId).order("due_on"),
-    supabase.from("profiles").select("display_name").eq("user_id", userId).maybeSingle(),
+    supabase.from("profiles").select("display_name, journal_ai_summary_enabled").eq("user_id", userId).maybeSingle(),
   ]);
   const failed = [categories, settings, history, goals, journal, jobs, reminders, profile].some((r) => r.error);
   if (!expenses || failed || !settings.data) return null;
@@ -62,5 +62,6 @@ export async function loadDigestSource(supabase: SupabaseAdmin, userId: string, 
       journal: journal.data as JournalEntry[],
     },
     reminders: reminders.data as Reminder[],
+    journalAiSummary: profile.data?.journal_ai_summary_enabled ?? false,
   };
 }
