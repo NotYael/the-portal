@@ -6,7 +6,14 @@ import { Dot } from "@/components/ui/dot";
 import { useToast } from "@/components/ui/toast";
 import { addExpenses } from "@/lib/data/expense-book";
 import { MAX_PARSE_LENGTH } from "@/lib/expense-parser";
-import type { Category, ExpenseSettings, ISODate } from "@/lib/types";
+import {
+  PAYMENT_LABELS,
+  PAYMENT_METHODS,
+  type Category,
+  type ExpenseSettings,
+  type ISODate,
+  type PaymentMethod,
+} from "@/lib/types";
 import { parseQuickAdd } from "./ai-client";
 import { validateDraft, type DraftErrors, type ExpenseDraft } from "./expense-draft";
 
@@ -148,7 +155,7 @@ export function QuickAdd({
           <p className="m-0 text-[13px] text-dark-muted">
             {parsedBy.ai
               ? "Parsed by Gemini — check the rows before saving."
-              : `Parsed without AI${parsedBy.notice ? ` (${parsedBy.notice.replace(/\.$/, "")})` : ""} — check categories before saving.`}
+              : `Parsed without AI${parsedBy.notice ? ` (${parsedBy.notice.replace(/\.$/, "")})` : ""} — check categories and payment before saving.`}
           </p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {rows.map((r, i) => {
@@ -192,6 +199,19 @@ export function QuickAdd({
                       aria-invalid={!!r.errors.spent_on || undefined}
                       className={`${darkControl} [color-scheme:dark]`}
                     />
+                    <label className="sr-only" htmlFor={`qa-pay-${r.key}`}>{`Paid with ${i + 1}`}</label>
+                    <select
+                      id={`qa-pay-${r.key}`}
+                      value={r.payment_method}
+                      onChange={(e) => updateRow(r.key, { payment_method: e.target.value as PaymentMethod })}
+                      className={darkControl}
+                    >
+                      {PAYMENT_METHODS.map((m) => (
+                        <option key={m} value={m}>
+                          {PAYMENT_LABELS[m]}
+                        </option>
+                      ))}
+                    </select>
                     <label className="sr-only" htmlFor={`qa-amt-${r.key}`}>{`Amount ${i + 1} in pesos`}</label>
                     <input
                       id={`qa-amt-${r.key}`}
