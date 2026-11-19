@@ -1,4 +1,4 @@
-import { acceptParsed, AI_MESSAGES, PARSE_SCHEMA, PARSE_SYSTEM, parsePrompt, parseRequest } from "@/lib/ai/expense-ai";
+import { acceptParsed, AI_MESSAGES, PARSE_SCHEMA, PARSE_SYSTEM, PARSE_TIME_LIMIT, parsePrompt, parseRequest } from "@/lib/ai/expense-ai";
 import { generateJson } from "@/lib/ai/gemini";
 import { AI_REQUESTS_PER_MINUTE, rateLimit, readBody, requireUser } from "@/lib/api/guard";
 import { todayInManila } from "@/lib/dates";
@@ -6,7 +6,8 @@ import { parseExpensesWithRules } from "@/lib/expense-parser";
 
 /**
  * Quick add: splits and categorizes a typed note. Gemini only sees the text.
- * Falls back to the rule parser (source: "rules") when every model fails.
+ * Falls back to the rule parser (source: "rules") when every model fails or
+ * the short PARSE_TIME_LIMIT runs out.
  */
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     prompt: parsePrompt(body.text, today),
     responseSchema: PARSE_SCHEMA,
     accept: (raw) => acceptParsed(raw, today),
+    timeLimit: PARSE_TIME_LIMIT,
   });
   if (ai.ok) return Response.json({ items: ai.data, source: "ai" });
 

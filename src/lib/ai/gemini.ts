@@ -12,11 +12,25 @@
  */
 
 const API = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODELS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.5-flash-lite"];
-const ATTEMPT_TIMEOUT_MS = 15_000;
-/** All models share this, so the page never waits much longer; each model left gets an equal part. */
-const TOTAL_BUDGET_MS = 40_000;
+/**
+ * Fastest reliable first. Measured 19 Nov 2026 on the quick-add prompt:
+ * flash-lite answered correctly in ~1.2s every time, while 3.6-flash and
+ * flash-latest mostly returned 503 "high demand" after up to 14s.
+ */
+const DEFAULT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
 const RETRY_DELAY_MS = 1_000;
+
+/**
+ * How long one request may take: all models share totalMs, and each model left
+ * gets an equal part of what remains, at most perModelMs.
+ */
+export interface TimeLimit {
+  totalMs: number;
+  perModelMs: number;
+}
+
+/** For insights, Ask and the digest: long enough for a slow model, so the page never waits much longer. */
+export const DEFAULT_TIME_LIMIT: TimeLimit = { totalMs: 40_000, perModelMs: 15_000 };
 
 /** not_configured: no API key. busy: rate-limited. unavailable: every model failed. */
 export type AiFailure = "not_configured" | "busy" | "unavailable";
@@ -32,6 +46,8 @@ export interface GenerateRequest<T> {
   temperature?: number;
   /** Gemini 3 thinkingLevel; null sends no thinking settings. Default "low". */
   thinking?: "minimal" | "low" | "medium" | "high" | null;
+  /** Default DEFAULT_TIME_LIMIT. Shorter where a non-AI answer is instant (quick add's rule parser). */
+  timeLimit?: TimeLimit;
 }
 
 /** Injectable for tests. */
@@ -54,8 +70,8 @@ export function configuredModels(env: Record<string, string | undefined> = proce
 }
 
 /** Splits the time left between this model and the ones after it, so a slow model can't starve the rest. */
-export function attemptTimeout(leftMs: number, modelsLeft: number): number {
-  return Math.min(ATTEMPT_TIMEOUT_MS, Math.floor(leftMs / Math.max(1, modelsLeft)));
+export function attemptTimeout(leftMs: number, modelsLeft: number, perModelMs = DEFAULT_TIME_LIMIT.perModelMs): number {
+  return Math.min(perModelMs, Math.floor(leftMs / Math.max(1, modelsLeft)));
 }
 
 let lastGood: string | null = null;
@@ -100,7 +116,8 @@ export async function generateJson<T>(request: GenerateRequest<T>, overrides: Pa
         ...(withThinking && thinking ? { thinkingConfig: { thinkingLevel: thinking } } : {}),
       },
     });
-  const deadline = deps.now() + TOTAL_BUDGET_MS;
+  const limit = request.timeLimit ?? DEFAULT_TIME_LIMIT;
+  const deadline = deps.now() + limit.totalMs;
   let busy = false;
 
   const models = inOrder(deps.models);
@@ -112,7 +129,7 @@ export async function generateJson<T>(request: GenerateRequest<T>, overrides: Pa
         deps.log(`[gemini] out of time before trying ${model}`);
         return { ok: false, reason: busy ? "busy" : "unavailable" };
       }
-      const result = await callModel(model, body(withThinking), withThinking, attemptTimeout(left, models.length - index), request.accept, deps);
+      const result = await callModel(model, body(withThinking), withThinking, attemptTimeout(left, models.length - index, limit.perModelMs), request.accept, deps);
       if (result.kind === "ok") {
         lastGood = model;
         return { ok: true, data: result.data, model };

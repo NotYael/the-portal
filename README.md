@@ -35,7 +35,9 @@ the data is still loaded in the page.
 **AI** (`src/lib/ai/`, routes in `src/app/api/expenses/`): quick add (`parse`), insights and Ask call Gemini from the
 server; the key never reaches the browser. `GEMINI_MODELS` is tried in order: a model that times out, is rate-limited,
 missing, overloaded or returns JSON that fails validation hands over to the next, and all models share a 40 s budget
-so each gets a turn. Requests ask for low thinking (answers in ~2–5 s instead of 10–15 s+). When every model fails,
+so each gets a turn. Quick add uses a shorter limit (12 s, at most 5 s per model) because the rule parser answers
+instantly. Put the fastest reliable model first: on 19 Nov 2026 `gemini-3.5-flash-lite` parsed in ~1.2 s while the
+others returned 503 "high demand" after up to 14 s, which made quick add take ~29 s. Requests ask for low thinking (answers in ~2–5 s instead of 10–15 s+). When every model fails,
 quick add uses the rule parser, insights keep the template ones, and Ask says AI is unavailable. Only a signed-in
 user (or `ALLOWED_USER_ID`) can call the routes, 12 requests a minute. Insights send aggregates only and are cached in
 the browser per month until the numbers change; Ask sends the month's rows. While amounts are hidden, ₱ figures in AI

@@ -24,6 +24,7 @@ import {
 } from "../expense-stats";
 import { monthLong, monthShortYear, WEEKDAYS_LONG } from "../format";
 import { PAYMENT_LABELS, PAYMENT_METHODS, type CategorySlug, type ISODate } from "../types";
+import type { TimeLimit } from "./gemini";
 
 export const MAX_QUESTION_LENGTH = 300;
 
@@ -39,6 +40,12 @@ const label = z.string().trim().max(60);
 // ---------- parse (quick add) ----------
 
 export const parseRequest = z.object({ text: z.string().trim().min(1).max(MAX_PARSE_LENGTH) });
+
+/**
+ * Quick add answers in ~1–2s when a model is healthy, and the rule parser
+ * answers instantly, so an overloaded model isn't worth waiting long for.
+ */
+export const PARSE_TIME_LIMIT: TimeLimit = { totalMs: 12_000, perModelMs: 5_000 };
 
 export const PARSE_SYSTEM = `You turn a short note about money someone spent into expense records for a budgeting app in the Philippines.
 - Split the note into separate expenses. Notes mix English, Filipino and Taglish ("groceries sa Puregold", "pamasahe", "kahapon").

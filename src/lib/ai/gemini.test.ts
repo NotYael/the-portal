@@ -118,6 +118,16 @@ describe("generateJson", () => {
     expect(calls).toEqual(["m1", "m2"]);
   });
 
+  it("follows a request's shorter time limit (quick add)", async () => {
+    // 12s in all, 5s per model at most: three overloaded models cost 12s, not 40s.
+    const clock = { t: 0 };
+    const { deps, logs } = fake([timeout(), timeout(), timeout()], clock, 4_000);
+    const result = await generateJson({ ...request, timeLimit: { totalMs: 12_000, perModelMs: 5_000 } }, deps);
+    expect(result).toEqual({ ok: false, reason: "unavailable" });
+    expect(clock.t).toBe(12_000);
+    expect(logs[0]).toContain("no answer in 4s");
+  });
+
   it("does nothing without an API key", async () => {
     const { deps, calls } = fake([]);
     deps.apiKey = undefined;
@@ -133,6 +143,11 @@ describe("attemptTimeout", () => {
     expect(attemptTimeout(13_334, 1)).toBe(13_334);
     expect(attemptTimeout(40_000, 1)).toBe(15_000);
   });
+
+  it("takes a per-model cap", () => {
+    expect(attemptTimeout(12_000, 3, 5_000)).toBe(4_000);
+    expect(attemptTimeout(12_000, 1, 5_000)).toBe(5_000);
+  });
 });
 
 describe("configuredModels", () => {
@@ -140,5 +155,7 @@ describe("configuredModels", () => {
     expect(configuredModels({ GEMINI_MODELS: " a, b ,a,, c" })).toEqual(["a", "b", "c"]);
     expect(configuredModels({ GEMINI_MODEL: "solo" })).toEqual(["solo"]);
     expect(configuredModels({}).length).toBeGreaterThan(1);
+    // Flash-Lite first: it answered in ~1s while the others were overloaded.
+    expect(configuredModels({})[0]).toBe("gemini-3.5-flash-lite");
   });
 });
