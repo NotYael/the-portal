@@ -76,7 +76,8 @@ function stat(label: string, value: string, detail: string, detailColor: string)
 export function digestEmail(digest: DigestData, appUrl: string, { test = false } = {}) {
   const { expenses, goals, jobs, reminders } = digest;
   const subject = `${test ? "[Test] " : ""}${digest.subject}`;
-  const greeting = `${digest.wins.length >= 3 ? "Good week" : "Your week"}, ${digest.name}.`;
+  // The profile name can be blank: then it's just "Your week."
+  const greeting = `${digest.wins.length >= 3 ? "Good week" : "Your week"}${digest.name ? `, ${digest.name}` : ""}.`;
 
   const stats = [
     expenses
