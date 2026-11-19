@@ -22,7 +22,8 @@ and every module shows demo data.
 | `/jobs` | Real matches from the job-agent bot, its live status (active / late / stopped / failing), pipeline counts, filters, Dismiss / Save / Mark applied |
 | `/journal` | Daily prompt, tags, link to goal, this week's entries, streak |
 | `/reminders` | Reminders for weeks from now (one-off or every N days/weeks/months): add form with 3/6/10-week shortcuts, Overdue / Due this week / Coming up / Done, edit drawer, Done moves a repeating one to its next date. Sidebar badge and a Home card show what's due in the next 7 days; the digest lists the week ahead |
-| `/digest` | Preview of this week's digest email |
+| `/digest` | Preview of this week's digest email, and **Send test** |
+| `/api/cron/weekly-digest` | The Sunday 8:00 PM digest email (Vercel Cron, see below) |
 
 To start over with fresh demo data, clear the site's `localStorage` (key `the-portal.mock-db.v1`).
 
@@ -44,6 +45,18 @@ text are masked and Ask is off.
 scheduled run, more than 34 hours of silence (24 h + 10 h for GitHub's late starts) is "Missed a run" and more than
 58 hours is "Stopped". A failed last run is "Last run failed", and a run that logged a warning (jobs Gemini couldn't
 score) is "Ran with problems".
+
+**Weekly digest cron** (`src/app/api/cron/weekly-digest/route.ts`, logic in `src/lib/digest-cron.ts`, tested):
+`vercel.json` calls it every Sunday at 12:00 UTC (8:00 PM Manila; Hobby may fire any time in that hour). It only
+answers `Authorization: Bearer $CRON_SECRET`, reads every module for `ALLOWED_USER_ID` with the secret key
+(`src/lib/digest-source.ts`), builds the same digest as `/digest` and emails it through Resend. It claims the week's
+`digest_runs` row before sending, so a second run that week sends nothing; a failed send marks the row `failed` and
+the next run can try again. The summary is the template one (Gemini-written summaries aren't built yet). To check it
+without sending anything:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/weekly-digest?dryRun=1"
+```
 
 ## Run it
 
@@ -113,4 +126,7 @@ Who writes what:
 2. Swap the last of `src/lib/data/store.ts` (the profile) for a Supabase query, like
    `src/lib/data/goals.ts` does for goals; keep the return shapes.
 3. Then have the AI routes read rows server-side and cache insights in `ai_insight_cache`.
-4. Add the `weekly-digest` cron (keep-alive already runs on GitHub Actions).
+4. Deploy to Vercel (Hobby): import the repo and set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_USER_ID`, `GEMINI_API_KEY`, `GEMINI_MODELS`, `RESEND_API_KEY`,
+   `DIGEST_TO_EMAIL` and `CRON_SECRET`. Check the cron under Settings → Cron Jobs, then add the Vercel URL to
+   Supabase Auth → URL Configuration. Keep-alive stays on GitHub Actions.
