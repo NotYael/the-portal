@@ -20,6 +20,7 @@ import {
   usePortalData,
   withSavedSettings,
 } from "./store";
+import { CATEGORY_COLUMNS, EXPENSE_COLUMNS, HISTORY_COLUMNS, SETTINGS_COLUMNS } from "./columns";
 import { fetchAllPages } from "./fetch-all";
 
 export interface ExpenseBook {
@@ -34,12 +35,6 @@ export interface ExpenseBookState {
   book: ExpenseBook | null;
   error: string | null;
 }
-
-const EXPENSE_COLUMNS = "id, category_id, amount, spent_on, description, payment_method, source, created_at, updated_at";
-const CATEGORY_COLUMNS = "id, slug, label, color, is_fixed, monthly_budget, sort_order, archived";
-const SETTINGS_COLUMNS =
-  "monthly_budget, default_payment_method, alert_threshold_pct, cycle_start_day, ai_insights_enabled, include_in_digest, rollover_enabled";
-const HISTORY_COLUMNS = "effective_month, monthly_budget, category_budgets";
 
 // ---------- Supabase ----------
 

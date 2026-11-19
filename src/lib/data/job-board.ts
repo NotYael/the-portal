@@ -9,6 +9,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { supabaseBrowser } from "../supabase/client";
 import { supabaseConfigured } from "../supabase/config";
 import type { AgentRun, JobMatch, JobStatus } from "../types";
+import { JOB_COLUMNS, RUN_COLUMNS } from "./columns";
 import { setJobStatus as setMockJobStatus, usePortalData } from "./store";
 
 export interface JobBoard {
@@ -22,9 +23,6 @@ export interface JobBoardState {
   error: string | null;
 }
 
-const JOB_COLUMNS =
-  "id, source, title, company, location, hq, url, salary, job_type, work_mode, match_pct, reason, posted_at, found_at, status";
-const RUN_COLUMNS = "id, ran_at, triggered_by, status, fetched, candidates, matched, error";
 
 // ---------- Supabase ----------
 

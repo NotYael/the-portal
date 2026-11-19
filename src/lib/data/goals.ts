@@ -14,6 +14,7 @@ import { withSubgoals } from "../goal-progress";
 import { supabaseBrowser } from "../supabase/client";
 import { supabaseConfigured } from "../supabase/config";
 import type { Goal, GoalMilestone, GoalSubgoal } from "../types";
+import { GOAL_COLUMNS, SUBGOAL_COLUMNS, toGoal, toSubgoal, type GoalRow } from "./columns";
 import {
   addGoal as addMockGoal,
   addSubgoal as addMockSubgoal,
@@ -37,31 +38,6 @@ export interface NewGoal {
   next_step: string;
   milestones: string[];
   subgoals: string[];
-}
-
-const SUBGOAL_COLUMNS = "id, title, done, done_at, sort_order, created_at";
-const GOAL_COLUMNS = `id, year, area, title, progress_pct, status, next_step, goal_milestones(quarter, label, state), goal_subgoals(${SUBGOAL_COLUMNS})`;
-
-interface SubgoalRow extends GoalSubgoal {
-  sort_order: number;
-  created_at: string;
-}
-
-interface GoalRow extends Omit<Goal, "milestones" | "subgoals"> {
-  goal_milestones: GoalMilestone[];
-  goal_subgoals: SubgoalRow[];
-}
-
-const toSubgoal = ({ id, title, done, done_at }: SubgoalRow): GoalSubgoal => ({ id, title, done, done_at });
-
-function toGoal({ goal_milestones, goal_subgoals, ...goal }: GoalRow): Goal {
-  return {
-    ...goal,
-    milestones: [...goal_milestones].sort((a, b) => a.quarter - b.quarter),
-    subgoals: [...goal_subgoals]
-      .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
-      .map(toSubgoal),
-  };
 }
 
 // ---------- Supabase ----------

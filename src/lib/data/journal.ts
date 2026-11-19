@@ -11,6 +11,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { supabaseBrowser } from "../supabase/client";
 import { supabaseConfigured } from "../supabase/config";
 import type { JournalEntry } from "../types";
+import { JOURNAL_COLUMNS } from "./columns";
 import { fetchAllPages } from "./fetch-all";
 import { addJournalEntry as addMockEntry, usePortalData } from "./store";
 
@@ -22,7 +23,7 @@ export interface JournalState {
 
 export type NewJournalEntry = Omit<JournalEntry, "id" | "created_at">;
 
-const COLUMNS = "id, entry_date, prompt, body, tag, goal_id, created_at";
+const COLUMNS = JOURNAL_COLUMNS;
 
 // ---------- Supabase ----------
 

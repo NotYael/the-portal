@@ -13,6 +13,7 @@ import { completionPatch } from "../reminders";
 import { supabaseBrowser } from "../supabase/client";
 import { supabaseConfigured } from "../supabase/config";
 import type { ISODate, NewReminder, Reminder } from "../types";
+import { REMINDER_COLUMNS } from "./columns";
 
 export interface RemindersState {
   /** null until the first load finishes (show a skeleton). */
@@ -22,7 +23,7 @@ export interface RemindersState {
 
 export type ReminderPatch = Partial<NewReminder & Pick<Reminder, "done_at">>;
 
-const COLUMNS = "id, title, notes, due_on, repeat_every, repeat_unit, done_at, created_at, updated_at";
+const COLUMNS = REMINDER_COLUMNS;
 const SERVER_STATE: RemindersState = { reminders: null, error: null };
 
 let state: RemindersState = SERVER_STATE;
