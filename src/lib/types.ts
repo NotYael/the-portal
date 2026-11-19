@@ -179,3 +179,16 @@ export interface Reminder {
 }
 
 export type NewReminder = Pick<Reminder, "title" | "notes" | "due_on" | "repeat_every" | "repeat_unit">;
+
+export const COUNTDOWN_MONTHS = [1, 3, 6] as const;
+export type CountdownMonths = (typeof COUNTDOWN_MONTHS)[number];
+
+/** A row of countdowns. Insert-only: once started it can't be changed or stopped. */
+export interface Countdown {
+  id: string;
+  title: string;
+  months: CountdownMonths;
+  /** Timestamps, set by the database when it starts. */
+  started_at: string;
+  ends_at: string;
+}

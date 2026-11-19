@@ -128,6 +128,18 @@ export function useNow(): number | null {
   return useSyncExternalStore(subscribeMinute, () => Math.floor(Date.now() / MINUTE) * MINUTE, () => null);
 }
 
+const SECOND = 1000;
+
+function subscribeSecond(listener: () => void) {
+  const timer = window.setInterval(listener, SECOND);
+  return () => window.clearInterval(timer);
+}
+
+/** Like useNow, but ticking every second (the countdown on Home). */
+export function useNowSeconds(): number | null {
+  return useSyncExternalStore(subscribeSecond, () => Math.floor(Date.now() / SECOND) * SECOND, () => null);
+}
+
 const now = () => new Date().toISOString();
 
 // ---------- expenses ----------

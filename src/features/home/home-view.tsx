@@ -23,6 +23,7 @@ import { nextSubgoal } from "@/lib/goal-progress";
 import { entriesThisWeek, goalSummary, goalsForYear, jobCounts, journalStreak, topMatches } from "@/lib/portal-summary";
 import { dueLabel, reminderBuckets } from "@/lib/reminders";
 import type { Goal, GoalSubgoal, ISODate, Reminder } from "@/lib/types";
+import { CountdownHero } from "../countdown/countdown";
 import { BudgetAlert } from "../expenses/budget-alert";
 import { QuickAdd } from "../expenses/quick-add";
 import { agentStatusTitle } from "../jobs/agent-status";
@@ -98,6 +99,8 @@ export function HomeView() {
           {loadErrors.join(" ")}
         </p>
       ) : null}
+
+      <CountdownHero />
 
       <QuickAdd categories={data.categories} settings={data.settings} today={today} />
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { CountdownCompact } from "@/features/countdown/countdown";
 import { endMockSession } from "@/lib/auth/session-cookie";
 import { useReminders } from "@/lib/data/reminders";
 import { usePortalData, useToday } from "@/lib/data/store";
@@ -73,7 +74,10 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div ref={rail} className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] min-[780px]:mx-0 min-[780px]:flex-col min-[780px]:overflow-visible min-[780px]:px-0 min-[780px]:pb-0">
+      {/* Home shows the big one. */}
+      {pathname === "/" ? null : <CountdownCompact />}
+
+      <div ref={rail}className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] min-[780px]:mx-0 min-[780px]:flex-col min-[780px]:overflow-visible min-[780px]:px-0 min-[780px]:pb-0">
         {NAV.map((item) => {
           const active = isActive(pathname, item.href);
           return (

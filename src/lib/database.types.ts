@@ -141,6 +141,33 @@ export type Database = {
         }
         Relationships: []
       }
+      countdowns: {
+        Row: {
+          ends_at: string
+          id: string
+          months: number
+          started_at: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          ends_at: string
+          id?: string
+          months: number
+          started_at?: string
+          title: string
+          user_id?: string
+        }
+        Update: {
+          ends_at?: string
+          id?: string
+          months?: number
+          started_at?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       digest_runs: {
         Row: {
           created_at: string
