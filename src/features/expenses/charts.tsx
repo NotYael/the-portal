@@ -52,7 +52,7 @@ export function DailySpendingChart({ days, ariaLabel }: { days: DayTotal[]; aria
       tooltip: {
         filter: (item) => !days[item.dataIndex].future,
         callbacks: {
-          title: (items) => shortDate(days[items[0].dataIndex].date),
+          title: (items) => shortDate(days[items[0].dataIndex]?.date),
           label: (item) => peso(days[item.dataIndex].total),
         },
       },
