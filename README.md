@@ -7,10 +7,11 @@ The full spec lives in [`docs/PORTAL_SPEC.md`](docs/PORTAL_SPEC.md). The visual 
 
 ## Status
 
-Login, Expenses (expenses, categories, settings, budget history), the Job agent and Reminders run on Supabase, and the expense
-AI features run on Gemini; goals, journal and profile still run on seeded demo data in `localStorage`.
+Login, Expenses (expenses, categories, settings, budget history), Goals (with milestones and sub-goals), the Journal,
+the Job agent and Reminders run on Supabase, and the expense AI features run on Gemini; only the profile (the name on
+Home) still comes from seeded demo data in `localStorage`.
 Without `.env.local` (see `.env.example`) the whole app runs in **demo mode**: any email and password sign in,
-and expenses and jobs are demo data too.
+and every module shows demo data.
 
 | Route | What works today |
 |---|---|
@@ -61,6 +62,9 @@ npm run typecheck
 - `src/lib/portal-summary.ts`, `src/lib/digest.ts` — what Home and the digest read from each module.
 - `src/lib/data/store.ts` — the mock data layer. Row shapes match the Supabase tables (`src/lib/types.ts`).
 - `src/lib/data/expense-book.ts` — expenses, categories, settings and budget history from Supabase (or the mock store in demo mode). Settings save through the `save_expense_settings` function in one transaction.
+- `src/lib/data/goals.ts` — goals with their milestones and sub-goals (or the mock store in demo mode). New goals save through the `create_goal` function in one transaction.
+- `src/lib/data/journal.ts` — journal entries (or the mock store in demo mode).
+- `src/lib/data/fetch-all.ts` — loads every page of a query (the Data API returns at most 1,000 rows at a time).
 - `src/lib/data/job-board.ts` — job matches and agent runs from Supabase (or the mock store in demo mode).
 - `src/lib/supabase/*` — browser, server and proxy clients (publishable key; RLS does the rest).
 - `src/proxy.ts` — the auth gate (Next.js 16 "proxy", formerly middleware); refreshes the Supabase session.
@@ -106,7 +110,7 @@ Who writes what:
 ## Next: connecting the backend
 
 1. In the Supabase dashboard, turn off **Allow new users to sign up** (Authentication → Sign In / Providers).
-2. Swap the rest of `src/lib/data/store.ts` (expenses, goals, journal, profile) for Supabase queries, like
-   `src/lib/data/job-board.ts` does for jobs; keep the return shapes.
+2. Swap the last of `src/lib/data/store.ts` (the profile) for a Supabase query, like
+   `src/lib/data/goals.ts` does for goals; keep the return shapes.
 3. Then have the AI routes read rows server-side and cache insights in `ai_insight_cache`.
 4. Add the `weekly-digest` cron (keep-alive already runs on GitHub Actions).

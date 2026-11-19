@@ -9,7 +9,8 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { parseISODate } from "@/lib/dates";
-import { addGoal, addSubgoal, newSubgoal, removeSubgoal, setSubgoalDone, usePortalData, useToday } from "@/lib/data/store";
+import { addGoal, addSubgoal, removeSubgoal, setSubgoalDone, useGoals } from "@/lib/data/goals";
+import { useToday } from "@/lib/data/store";
 import { checklistOrder, subgoalProgress } from "@/lib/goal-progress";
 import { daysLeftInYear, goalSummary, goalsForYear } from "@/lib/portal-summary";
 import type { Goal, GoalSubgoal, MilestoneState } from "@/lib/types";
@@ -27,17 +28,27 @@ const MILESTONE: Record<MilestoneState, string> = {
 };
 
 export function GoalsView() {
-  const data = usePortalData();
+  const { goals: all, error } = useGoals();
   const today = useToday();
   const [year, setYear] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
-  if (!data || !today) return <PageSkeleton cards={3} label="Loading goals" />;
+  if (!all || !today) {
+    if (!error) return <PageSkeleton cards={3} label="Loading goals" />;
+    return (
+      <>
+        <PageHeader kicker="Set in January · reviewed weekly" title="Goals" />
+        <p role="alert" className="m-0 rounded-[12px] bg-warn-soft px-4 py-3 text-sm text-warn-ink">
+          {error}
+        </p>
+      </>
+    );
+  }
 
   const { year: thisYear, month } = parseISODate(today);
   const selected = year ?? thisYear;
-  const goals = goalsForYear(data.goals, selected);
-  const summary = goalSummary(data.goals, thisYear);
+  const goals = goalsForYear(all, selected);
+  const summary = goalSummary(all, thisYear);
   const quarter = Math.ceil(month / 3);
 
   const planNextYear = () => {
@@ -235,9 +246,11 @@ function Checklist({ goal, items }: { goal: Goal; items: GoalSubgoal[] }) {
 
   const toggle = (id: string, done: boolean, index: number) => {
     const hadFocus = list.current?.contains(document.activeElement) ?? false;
-    setSubgoalDone(goal.id, id, done);
     const remaining = goal.subgoals.filter((s) => !s.done && s.id !== id).length;
-    if (done && remaining === 0) toast(`“${goal.title}” is done: every sub-goal is ticked`);
+    void setSubgoalDone(goal.id, id, done).then((saved) => {
+      if (!saved) toast("Couldn’t save that. Try again.");
+      else if (done && remaining === 0) toast(`“${goal.title}” is done: every sub-goal is ticked`);
+    });
     if (hadFocus) {
       requestAnimationFrame(() => {
         if (list.current?.contains(document.activeElement)) return;
@@ -262,7 +275,11 @@ function Checklist({ goal, items }: { goal: Goal; items: GoalSubgoal[] }) {
           </label>
           <button
             type="button"
-            onClick={() => removeSubgoal(goal.id, s.id)}
+            onClick={() =>
+              void removeSubgoal(goal.id, s.id).then((removed) => {
+                if (!removed) toast("Couldn’t remove that sub-goal. Try again.");
+              })
+            }
             aria-label={`Remove sub-goal: ${s.title}`}
             title="Remove"
             className="size-10 shrink-0 cursor-pointer rounded-lg text-lg text-muted hover:bg-subtle hover:text-ink"
@@ -280,14 +297,19 @@ function AddSubgoal({ goal, idPrefix, inCard = false }: { goal: Goal; idPrefix: 
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const inputId = `${idPrefix}-${goal.id}`;
 
-  const add = (event: FormEvent) => {
+  const add = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     const clean = title.trim().slice(0, 200);
     if (!clean) return setError("Write the sub-goal first.");
     const open = goal.subgoals.filter((s) => !s.done).length;
-    addSubgoal(goal.id, clean);
+    setSaving(true);
+    const saved = await addSubgoal(goal, clean);
+    setSaving(false);
+    if (!saved) return setError("Couldn’t add it. Try again.");
     if (inCard && open >= VISIBLE_SUBGOALS) toast(`Added “${clean}”. Open “Show all” to see it.`);
     setTitle("");
     setError(null);
@@ -310,7 +332,9 @@ function AddSubgoal({ goal, idPrefix, inCard = false }: { goal: Goal; idPrefix: 
           }}
           invalid={!!error}
         />
-        <Button type="submit">Add</Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? "Adding…" : "Add"}
+        </Button>
       </div>
       {error ? (
         <p id={`${inputId}-error`} className="m-0 text-[13px] text-warn-ink">
@@ -329,32 +353,36 @@ function NewGoalForm({ year, onDone }: { year: number; onDone: () => void }) {
   const [subgoals, setSubgoals] = useState("");
   const [milestones, setMilestones] = useState(["", "", "", ""]);
   const [errors, setErrors] = useState<{ area?: string; title?: string }>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     const e: typeof errors = {};
     if (!area.trim()) e.area = "Name the area, e.g. Career.";
     if (!title.trim()) e.title = "Write the goal.";
     setErrors(e);
     if (Object.keys(e).length) return;
-    addGoal({
+    setSaving(true);
+    setSaveError(null);
+    const saved = await addGoal({
       year,
       area: area.trim(),
       title: title.trim(),
-      progress_pct: 0,
-      status: "on_track",
       next_step: next.trim(),
-      milestones: milestones.map((label, i) => ({
-        quarter: (i + 1) as 1 | 2 | 3 | 4,
-        label: label.trim() || "—",
-        state: "todo" as const,
-      })),
+      milestones: milestones.map((label) => label.trim() || "—"),
       subgoals: subgoals
         .split("\n")
         .map((line) => line.replace(/^\s*[-•*]\s*/, "").trim())
         .filter(Boolean)
-        .map((line) => newSubgoal(line.slice(0, 200))),
+        .map((line) => line.slice(0, 200)),
     });
+    setSaving(false);
+    if (!saved) {
+      setSaveError("Couldn’t save the goal. Try again.");
+      return;
+    }
     toast(`Goal added to ${year}`);
     onDone();
   };
@@ -363,13 +391,13 @@ function NewGoalForm({ year, onDone }: { year: number; onDone: () => void }) {
     <form noValidate onSubmit={submit} aria-label="New goal" className="flex flex-col gap-4 rounded-[16px] border border-line bg-surface p-4 sm:p-6">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
         <Field id="goal-area" label="Area" error={errors.area}>
-          <TextInput id="goal-area" placeholder="Career" value={area} onChange={(e) => setArea(e.target.value)} invalid={!!errors.area} />
+          <TextInput id="goal-area" placeholder="Career" maxLength={40} value={area} onChange={(e) => setArea(e.target.value)} invalid={!!errors.area} />
         </Field>
         <Field id="goal-title" label="Goal" error={errors.title} className="sm:col-span-2">
-          <TextInput id="goal-title" placeholder="Land a SWE role" value={title} onChange={(e) => setTitle(e.target.value)} invalid={!!errors.title} />
+          <TextInput id="goal-title" placeholder="Land a SWE role" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} invalid={!!errors.title} />
         </Field>
         <Field id="goal-next" label="Next step">
-          <TextInput id="goal-next" placeholder="Optional" value={next} onChange={(e) => setNext(e.target.value)} />
+          <TextInput id="goal-next" placeholder="Optional" maxLength={200} value={next} onChange={(e) => setNext(e.target.value)} />
         </Field>
       </div>
       <Field
@@ -393,16 +421,22 @@ function NewGoalForm({ year, onDone }: { year: number; onDone: () => void }) {
             <TextInput
               id={`goal-q${i + 1}`}
               placeholder="Optional"
+              maxLength={60}
               value={m}
               onChange={(e) => setMilestones(milestones.map((x, j) => (j === i ? e.target.value : x)))}
             />
           </Field>
         ))}
       </fieldset>
+      {saveError ? (
+        <p role="alert" className="m-0 text-sm text-warn-ink">
+          {saveError}
+        </p>
+      ) : null}
       <div className="flex justify-end gap-2">
         <Button onClick={onDone}>Cancel</Button>
-        <Button type="submit" variant="primary">
-          Add goal
+        <Button type="submit" variant="primary" disabled={saving}>
+          {saving ? "Saving…" : "Add goal"}
         </Button>
       </div>
     </form>

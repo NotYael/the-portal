@@ -8,8 +8,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { dayOfMonth, parseISODate, weekdayMon0 } from "@/lib/dates";
-import { JOURNAL_PROMPTS } from "@/lib/data/seed";
-import { addJournalEntry, usePortalData, useToday } from "@/lib/data/store";
+import { JOURNAL_PROMPTS } from "@/lib/data/defaults";
+import { useGoals } from "@/lib/data/goals";
+import { addJournalEntry, useJournal } from "@/lib/data/journal";
+import { useToday } from "@/lib/data/store";
 import { WEEKDAYS_LONG, WEEKDAYS_SHORT, longDate } from "@/lib/format";
 import { entriesThisWeek, goalsForYear, journalStreak } from "@/lib/portal-summary";
 import type { JournalTag } from "@/lib/types";
@@ -22,29 +24,49 @@ export const TAGS: { id: JournalTag; label: string; color: string }[] = [
 ];
 
 export function JournalView() {
-  const data = usePortalData();
+  const { entries, error: loadError } = useJournal();
+  const { goals: allGoals } = useGoals();
   const today = useToday();
   const toast = useToast();
   const [body, setBody] = useState("");
   const [tag, setTag] = useState<JournalTag>("win");
   const [goalId, setGoalId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  if (!data || !today) return <PageSkeleton cards={2} label="Loading journal" />;
+  if (!entries || !today) {
+    if (!loadError) return <PageSkeleton cards={2} label="Loading journal" />;
+    return (
+      <>
+        <PageHeader kicker="Daily entries" title="Journal" />
+        <p role="alert" className="m-0 rounded-[12px] bg-warn-soft px-4 py-3 text-sm text-warn-ink">
+          {loadError}
+        </p>
+      </>
+    );
+  }
 
-  const streak = journalStreak(data.journal, today);
-  const week = entriesThisWeek(data.journal, today);
-  const goals = goalsForYear(data.goals, parseISODate(today).year);
+  const streak = journalStreak(entries, today);
+  const week = entriesThisWeek(entries, today);
+  // Linking a goal is optional: if goals can't load, the list just stays empty.
+  const goals = goalsForYear(allGoals ?? [], parseISODate(today).year);
   const prompt = JOURNAL_PROMPTS[dayOfMonth(today) % JOURNAL_PROMPTS.length];
-  const writtenToday = data.journal.filter((e) => e.entry_date === today).length;
+  const writtenToday = entries.filter((e) => e.entry_date === today).length;
 
-  const save = (event: FormEvent) => {
+  const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     if (!body.trim()) {
       setError("Write something first.");
       return;
     }
-    addJournalEntry({ entry_date: today, prompt, body: body.trim(), tag, goal_id: goalId || null });
+    setSaving(true);
+    const saved = await addJournalEntry({ entry_date: today, prompt, body: body.trim(), tag, goal_id: goalId || null });
+    setSaving(false);
+    if (!saved) {
+      setError("Couldn’t save your entry. Try again.");
+      return;
+    }
     setBody("");
     setError(null);
     toast("Entry saved");
@@ -74,6 +96,7 @@ export function JournalView() {
           <TextArea
             id="entry"
             rows={9}
+            maxLength={20000}
             placeholder="Start writing…"
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -109,8 +132,8 @@ export function JournalView() {
                 ))}
               </Select>
             </Field>
-            <Button type="submit" variant="primary">
-              Save entry
+            <Button type="submit" variant="primary" disabled={saving}>
+              {saving ? "Saving…" : "Save entry"}
             </Button>
           </div>
           <p className="m-0 text-xs text-muted">Journal text stays private. It’s never sent to AI unless you turn that on.</p>

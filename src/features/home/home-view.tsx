@@ -12,9 +12,11 @@ import { useToast } from "@/components/ui/toast";
 import { hourInManila, monthKeyOf, parseISODate } from "@/lib/dates";
 import { agentHealth } from "@/lib/agent-health";
 import { useExpenseBook } from "@/lib/data/expense-book";
+import { setSubgoalDone, useGoals } from "@/lib/data/goals";
 import { useJobBoard } from "@/lib/data/job-board";
+import { useJournal } from "@/lib/data/journal";
 import { useReminders } from "@/lib/data/reminders";
-import { setSubgoalDone, useNow, usePortalData, useToday } from "@/lib/data/store";
+import { useNow, usePortalData, useToday } from "@/lib/data/store";
 import { computeMonthStats, sumAmounts } from "@/lib/expense-stats";
 import { MONTHS_LONG, dayAndTime, longDate, monthShort, peso, pesoExact, shortDate } from "@/lib/format";
 import { nextSubgoal } from "@/lib/goal-progress";
@@ -32,11 +34,14 @@ function greeting(hour: number) {
 export function HomeView() {
   const portal = usePortalData();
   const { book, error } = useExpenseBook();
+  const { goals: goalRows, error: goalsError } = useGoals();
+  const { entries, error: journalError } = useJournal();
   const today = useToday();
   const now = useNow();
   const { board } = useJobBoard();
   const { reminders } = useReminders();
-  if (!portal || !today || !now || (!book && !error)) return <PageSkeleton cards={4} label="Loading your dashboard" />;
+  const waiting = (!book && !error) || (!goalRows && !goalsError) || (!entries && !journalError);
+  if (!portal || !today || !now || waiting) return <PageSkeleton cards={4} label="Loading your dashboard" />;
   if (!book) {
     return (
       <>
@@ -47,7 +52,9 @@ export function HomeView() {
       </>
     );
   }
-  const data = { ...portal, ...book };
+  // Goals or the journal failing to load only blanks their own panels (and says so below the header).
+  const data = { ...portal, ...book, goals: goalRows ?? [], journal: entries ?? [] };
+  const loadErrors = [goalsError, journalError].filter(Boolean);
 
   const { year, month } = parseISODate(today);
   const stats = computeMonthStats({
@@ -85,6 +92,12 @@ export function HomeView() {
           </Link>
         }
       />
+
+      {loadErrors.length ? (
+        <p role="alert" className="m-0 rounded-[12px] bg-warn-soft px-4 py-3 text-sm text-warn-ink">
+          {loadErrors.join(" ")}
+        </p>
+      ) : null}
 
       <QuickAdd categories={data.categories} settings={data.settings} today={today} />
 
@@ -249,12 +262,18 @@ function UpNext({ goals }: { goals: Goal[] }) {
   const open = goals.filter((g) => g.status !== "done");
   const finished = goals.length - open.length;
 
-  const tick = (goal: Goal, sub: GoalSubgoal) => {
-    setSubgoalDone(goal.id, sub.id, true);
+  const tick = async (goal: Goal, sub: GoalSubgoal) => {
     const last = goal.subgoals.every((s) => s.done || s.id === sub.id);
+    if (!(await setSubgoalDone(goal.id, sub.id, true))) {
+      toast("Couldn’t save that. Try again.");
+      return;
+    }
     toast(last ? `“${goal.title}” is done` : `Ticked “${sub.title}”`, {
       label: "Undo",
-      onClick: () => setSubgoalDone(goal.id, sub.id, false),
+      onClick: () =>
+        void setSubgoalDone(goal.id, sub.id, false).then((saved) => {
+          if (!saved) toast("Couldn’t undo that. Try again.");
+        }),
     });
   };
 
@@ -277,7 +296,7 @@ function UpNext({ goals }: { goals: Goal[] }) {
                       type="checkbox"
                       className="size-[18px] shrink-0 accent-accent"
                       checked={false}
-                      onChange={() => tick(g, next)}
+                      onChange={() => void tick(g, next)}
                       aria-label={`Tick off “${next.title}” for ${g.title}`}
                     />
                     <span>{next.title}</span>

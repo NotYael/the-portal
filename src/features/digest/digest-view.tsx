@@ -8,7 +8,9 @@ import { useToast } from "@/components/ui/toast";
 import { buildDigest } from "@/lib/digest";
 import { DIGEST_FROM } from "@/lib/email/addresses";
 import { useExpenseBook } from "@/lib/data/expense-book";
+import { useGoals } from "@/lib/data/goals";
 import { useJobBoard } from "@/lib/data/job-board";
+import { useJournal } from "@/lib/data/journal";
 import { useReminders } from "@/lib/data/reminders";
 import { usePortalData, useToday } from "@/lib/data/store";
 import { DigestEmail } from "./digest-email";
@@ -16,6 +18,8 @@ import { DigestEmail } from "./digest-email";
 export function DigestView() {
   const portal = usePortalData();
   const { book, error: bookError } = useExpenseBook();
+  const { goals, error: goalsError } = useGoals();
+  const { entries, error: journalError } = useJournal();
   const today = useToday();
   const toast = useToast();
   const { board, error } = useJobBoard();
@@ -25,18 +29,20 @@ export function DigestView() {
   // If the jobs can't load, the digest still previews everything else.
   const jobs = board?.jobs ?? (error ? [] : null);
   const reminders = reminderRows ?? (remindersError ? [] : null);
-  if (!portal || !today || !jobs || !reminders || (!book && !bookError)) return <PageSkeleton cards={3} label="Loading digest" />;
-  if (!book) {
+  const waiting = (!book && !bookError) || (!goals && !goalsError) || (!entries && !journalError);
+  if (!portal || !today || !jobs || !reminders || waiting) return <PageSkeleton cards={3} label="Loading digest" />;
+  // Expenses, goals and wins are the digest itself, so without them there's nothing to preview or send.
+  if (!book || !goals || !entries) {
     return (
       <>
         <PageHeader kicker="This week so far" title="Weekly digest" />
         <p role="alert" className="m-0 rounded-[12px] bg-warn-soft px-4 py-3 text-sm text-warn-ink">
-          {bookError}
+          {[bookError, goalsError, journalError].filter(Boolean).join(" ")}
         </p>
       </>
     );
   }
-  const data = { ...portal, ...book };
+  const data = { ...portal, ...book, goals, journal: entries };
 
   const digest = buildDigest({ ...data, jobs }, today, reminders);
 

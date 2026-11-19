@@ -20,6 +20,7 @@ import {
   usePortalData,
   withSavedSettings,
 } from "./store";
+import { fetchAllPages } from "./fetch-all";
 
 export interface ExpenseBook {
   expenses: Expense[];
@@ -40,9 +41,6 @@ const SETTINGS_COLUMNS =
   "monthly_budget, default_payment_method, alert_threshold_pct, cycle_start_day, ai_insights_enabled, include_in_digest, rollover_enabled";
 const HISTORY_COLUMNS = "effective_month, monthly_budget, category_budgets";
 
-/** The Data API returns at most 1,000 rows per request, so expenses load in pages. */
-const PAGE_SIZE = 1000;
-
 // ---------- Supabase ----------
 
 let state: ExpenseBookState = { book: null, error: null };
@@ -61,20 +59,11 @@ function patchBook(recipe: (book: ExpenseBook) => ExpenseBook) {
 
 async function loadExpenses(): Promise<Expense[] | null> {
   const supabase = supabaseBrowser();
-  const rows: Expense[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    // Ordered on a unique key too, so pages never skip or repeat a row.
-    const { data, error } = await supabase
-      .from("expenses")
-      .select(EXPENSE_COLUMNS)
-      .order("spent_on")
-      .order("id")
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) return null;
-    // The columns' check constraints guarantee the narrower types.
-    rows.push(...(data as Expense[]));
-    if (data.length < PAGE_SIZE) return rows;
-  }
+  const rows = await fetchAllPages((from, to) =>
+    supabase.from("expenses").select(EXPENSE_COLUMNS).order("spent_on").order("id").range(from, to),
+  );
+  // The columns' check constraints guarantee the narrower types.
+  return rows as Expense[] | null;
 }
 
 async function load() {

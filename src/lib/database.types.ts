@@ -553,6 +553,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_goal: {
+        Args: {
+          p_area: string
+          p_milestones: string[]
+          p_next_step: string
+          p_subgoals: string[]
+          p_title: string
+          p_year: number
+        }
+        Returns: string
+      }
       save_expense_settings: {
         Args: {
           p_ai_insights_enabled: boolean

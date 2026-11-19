@@ -29,7 +29,7 @@ import type {
   MonthKey,
   PaymentMethod,
 } from "../types";
-import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_BUDGETS, DEFAULT_SETTINGS } from "./defaults";
+import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_BUDGETS, DEFAULT_SETTINGS, JOURNAL_PROMPTS } from "./defaults";
 import type { PortalState } from "./portal-state";
 
 export const RECORDS_START: MonthKey = "2025-03";
@@ -245,13 +245,6 @@ const JOURNAL: [JournalTag, string, string | null][] = [
   ["note", "Training streak holding. Legs day is still the hardest to show up for.", "goal-health"],
   ["win", "First UK SME agreed to a pilot call.", "goal-startup"],
   ["note", "Quiet day, mostly admin.", null],
-];
-
-export const JOURNAL_PROMPTS = [
-  "What moved you closer to a goal this week?",
-  "What would make tomorrow a win?",
-  "What did you learn today that you want to keep?",
-  "What’s one thing you’ll do differently next week?",
 ];
 
 function seedJournal(today: ISODate): JournalEntry[] {

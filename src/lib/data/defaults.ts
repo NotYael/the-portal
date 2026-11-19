@@ -32,3 +32,11 @@ export const DEFAULT_SETTINGS: ExpenseSettings = {
   include_in_digest: true,
   rollover_enabled: false,
 };
+
+/** The journal's daily prompt rotates through these by day of the month. */
+export const JOURNAL_PROMPTS = [
+  "What moved you closer to a goal this week?",
+  "What would make tomorrow a win?",
+  "What did you learn today that you want to keep?",
+  "What’s one thing you’ll do differently next week?",
+];
